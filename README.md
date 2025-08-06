@@ -52,15 +52,17 @@ So here we are: yet another tmux session manager!
 
 ## Key Bindings ##
 - `prefix + f` - Fuzzy \[F\]ind and restore a single session
-- `prefix + u` - Save/\[U\]pdate the current session
-- `prefix + Ctrl-r` - \[R\]estore all sessions
-- `prefix + Ctrl-s` - \[S\]ave all sessions
+- `prefix + u` - Save/\[U\]pdate the current session only
+- `prefix + X` - Delete/\E[X\]terminate the current session only
+- `prefix + Ctrl-r` - \[R\]estore all sessions (NOTE: Does not impact current sessions that don't exist in the file)
+- `prefix + Ctrl-s` - \[S\]ave all sessions (NOTE: Does not impact session in file that are not currently loaded)
 
 ### Customizing Key Bindings ###
 - Add the following to your ~/.tmux.conf file after the line that adds the plugin
     ```sh
     set -g @tmux-lazy-restore-choose-key 'f'
     set -g @tmux-lazy-restore-update-key 'u'
+    set -g @tmux-lazy-restore-delete-key 'X'
     set -g @tmux-lazy-restore-restore-all-key 'C-r'
     set -g @tmux-lazy-restore-save-all-key 'C-s'
     ```
@@ -83,6 +85,7 @@ Optionally add the following to your ~/.tmux.conf file after the tmux-lazy-resto
 - [X] Save/Update Individual Session
 - [X] Restore All Sessions
 - [X] Save All Sessions
+- [X] Delete Individual Session
 - [ ] Interoperability with tmux-resurrect
 
 ## Contributing ##

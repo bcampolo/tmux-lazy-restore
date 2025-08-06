@@ -5,26 +5,50 @@
 # Parameters:
 # Returns:
 save_sessions() {
-  first_session=true
-  # Write out JSON root starting element and sessions property name
-  echo "{\"sessions\": [" > $SESSION_FILE
+  # Start spinner
+  start_spinner_with_message "SAVING ALL SESSIONS"
+
+  # Mark all sessions as inactive
+  jq '(.sessions[] | .active) = "0"' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+
   # For each session
   tmux list-sessions -F "#{session_name}:#{session_id}" | while IFS=: read -r session_name session_id; do
-    # If this is not the first session add a comma after the previous item
-    if [ "$first_session" = false ]; then echo ","; else first_session=false; fi
     # Set the current session as "active" so we can activate again upon restoring
     session_active=0
     if [ "$session_name" == "$(tmux display-message -p '#{session_name}')" ]; then
         session_active=1;
     fi
-    get_session_data "$session_name" "$session_id" "$session_active"
-  done  >> "$SESSION_FILE"
-  # End sessions
-  echo "]}" >> $SESSION_FILE
+
+    # Get all of the data for this session, including windows and panes
+    updated_session_data=$(get_session_data "$session_name" "$session_id" "$session_active")
+
+    # Get the existing session data from the sessions file (if it exists)
+    existing_session_data=$(jq --arg session_name "$session_name" '.sessions[] | select(.name == $session_name)' "$SESSION_FILE")
+
+    # If this session exists in the session file
+    if [ -n "$existing_session_data" ]; then
+      # Update the current session in the sessions file
+      jq --arg session_name "$session_name" --argjson new_data "$updated_session_data" '.sessions |= map(if .name == $session_name then $new_data else . end)' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+    else
+      # Otherwise add the new session to the sessions file
+      jq --argjson new_data "$updated_session_data" '.sessions += [$new_data]' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+    fi
+  done
+
   # Pretty-print the new sessions file
   jq '.' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+
+  # All done saving
+  stop_spinner_with_message "SESSION SAVED"
 }
 
+# Function: get_session_data
+# Description: Helper method to get all of the data associated with the specified session
+# Parameters:
+#   $1 - Session name
+#   $2 - Session ID
+#   $3 - Session active status
+# Returns:
 get_session_data() {
   session_name=$1
   session_id=$2
@@ -77,11 +101,6 @@ get_session_data() {
 #   $1 - Session name to restore
 # Returns:
 restore_sessions() {
-  if [ ! -f "$SESSION_FILE" ]; then
-    echo "No session file found at $SESSION_FILE"
-    return 1
-  fi
-
   # If this parameter is passed in, only the specified session will be restored
   lazy_restore_chosen_session=$1
 
@@ -200,8 +219,10 @@ restore_sessions() {
 
   done <<< "$sessions"
 
-  # Restore focus on the original session/window/panel
-  tmux switch-client -Z -t "${active_session_name}:${active_session_window_index}.${active_session_pane_index}"
+  # Restore focus on the active session/window/panel
+  if [ -n "$active_session_name" ]; then
+    tmux switch-client -Z -t "${active_session_name}:${active_session_window_index}.${active_session_pane_index}"
+  fi
 
   # Kill the session this command was launched from if restoring all
   if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ -z "$lazy_restore_chosen_session" ]; then
@@ -217,11 +238,6 @@ restore_sessions() {
 # Parameters:
 # Returns:
 choose_session() {
-    if [ ! -f "$SESSION_FILE" ]; then
-        echo "No session file found at $SESSION_FILE"
-        return 1
-    fi
-
     # Get the list of Session names only
     sessions=$(jq -r '.sessions | .[].name' "$SESSION_FILE")
     session_list=""
@@ -257,14 +273,10 @@ update_session() {
   # Get the updated session data
   updated_session_data=$(get_session_data "$session_name" "$current_session_id" "1")
 
-  # If there is already an existing session file
-  existing_session_data=""
-  if [ -f "$SESSION_FILE" ]; then
-    # Mark all sessions as inactive
-    jq '(.sessions[] | .active) = "0"' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
-    # Get the existing session data
-    existing_session_data=$(jq --arg session_name "$session_name" '.sessions[] | select(.name == $session_name)' "$SESSION_FILE")
-  fi
+  # Mark all sessions as inactive
+  jq '(.sessions[] | .active) = "0"' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+  # Get the existing session data from the sessions file (if it exists)
+  existing_session_data=$(jq --arg session_name "$session_name" '.sessions[] | select(.name == $session_name)' "$SESSION_FILE")
   
   # If the session exists in the session file, update it
   if [ -n "$existing_session_data" ]; then
@@ -273,6 +285,31 @@ update_session() {
   else
     jq --argjson new_data "$updated_session_data" '.sessions += [$new_data]' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
   fi
+
+  stop_spinner_with_message "SESSION UPDATED"
+}
+
+# Function: delete_session
+# Description: Deletes only the current session from the sessions file
+# Parameters:
+# Returns:
+delete_session() {
+  # Get the current session name
+  session_name=$(tmux display-message -p '#{session_name}')
+
+  # Remove the session with the specified name from the session file
+  jq --arg session_name "$session_name" 'del(.sessions[] | select(.name == $session_name))' "$SESSION_FILE" > "$SESSION_FILE.tmp" && mv "$SESSION_FILE.tmp" "$SESSION_FILE"
+
+  # If there is more than 1 session
+  if [ "$(tmux list-sessions | wc -l)" -gt 1 ]; then
+    # Switch to the previous session
+    tmux switch-client -l
+  fi
+
+  # Kill the current session
+  tmux kill-session -t "$session_name" 2>/dev/null
+
+  stop_spinner_with_message "SESSION DELETED"
 }
 
 # Function: get_tmux_option
@@ -343,7 +380,7 @@ start_spinner_with_message() {
 stop_spinner_with_message() {
   STOP_MESSAGE=$1
 	kill $SPINNER_PID
-  tmux display-message -d 2000 "$STOP_MESSAGE"
+  tmux display-message -N -d 400 "$STOP_MESSAGE"
 }
 
 
@@ -352,7 +389,12 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Check if the session file location option is set, otherwise use default location
 SESSION_FILE=$(get_tmux_option @tmux-lazy-restore-session-file "$HOME/.config/tmux-lazy-restore/sessions.json")
-mkdir -p $(dirname "$SESSION_FILE")
+
+# Check if the session file exists, if not create the path and the a file with an empty sessions list
+if [ ! -f "$SESSION_FILE" ]; then
+  mkdir -p "$(dirname "$SESSION_FILE")"
+  echo "{\"sessions\": []}" > $SESSION_FILE
+fi
 
 # Check if the kill launch session option is set 
 KILL_LAUNCH_SESSION=$(get_tmux_option @tmux-lazy-restore-kill-launch-session "off")
@@ -364,6 +406,9 @@ case "$1" in
         ;;
     update)
         update_session
+        ;;
+    delete)
+        delete_session
         ;;
     save_all)
         save_sessions

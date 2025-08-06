@@ -28,6 +28,10 @@ tmux bind-key "$choose_key" run-shell "$CURRENT_DIR/scripts/tmux-session-manager
 update_key=$(get_tmux_option "@tmux-lazy-restore-update-key" "u")
 tmux bind-key "$update_key" run-shell "$CURRENT_DIR/scripts/tmux-session-manager.sh update"
 
+# Keybind to delete a single session
+delete_key=$(get_tmux_option "@tmux-lazy-restore-delete-key" "X")
+tmux bind-key "$delete_key" run-shell "$CURRENT_DIR/scripts/tmux-session-manager.sh delete"
+
 # Keybind to restore all sessions
 restore_all_key=$(get_tmux_option "@tmux-lazy-restore-restore-all-key" "C-r")
 tmux bind-key "$restore_all_key" run-shell "$CURRENT_DIR/scripts/tmux-session-manager.sh restore_all"
