@@ -141,7 +141,7 @@ restore_sessions() {
       if [ "$force_restore" != "true" ]; then
         tmux switch-client -Z -t "${restore_session_name}"
         stop_spinner_with_message "SESSION ALREADY LOADED"
-        return;
+        continue
       fi
       # If the session is not the current session
       if [ "$session_name" != "$current_session_name" ]; then
