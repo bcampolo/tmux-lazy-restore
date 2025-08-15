@@ -101,8 +101,10 @@ get_session_data() {
 #   $1 - Session name to restore
 # Returns:
 restore_sessions() {
-  # If this parameter is passed in, only the specified session will be restored
-  lazy_restore_chosen_session=$1
+  # If this parameter is passed in, only the specified session will be restored, otherwise all sessions will be restored
+  restore_session_name=$1
+  # If this parameters is passed in the specified session will be restored even if it is already loaded
+  force_restore=$2
 
   active_session_name=""
   active_session_window_index=""
@@ -118,9 +120,9 @@ restore_sessions() {
   current_pane_id=$(tmux display-message -p '#{pane_id}')
 
   # If session is passed filter the session file to only the specified session (faster)
-  if [ -n "$lazy_restore_chosen_session" ]; then
-    sessions=$(jq -c --arg lazy_restore_chosen_session "$lazy_restore_chosen_session" '.sessions[] | select(.name == $lazy_restore_chosen_session)' "$SESSION_FILE")
-    start_spinner_with_message "RESTORING: $lazy_restore_chosen_session"
+  if [ -n "$restore_session_name" ]; then
+    sessions=$(jq -c --arg restore_session_name "$restore_session_name" '.sessions[] | select(.name == $restore_session_name)' "$SESSION_FILE")
+    start_spinner_with_message "RESTORING: $restore_session_name"
   else
     # Otherwise, load all sessions
     sessions=$(jq -c '.sessions[]' "$SESSION_FILE")
@@ -135,6 +137,12 @@ restore_sessions() {
 
     # If the session already exists
     if tmux has-session -t "$session_name" 2>/dev/null; then
+      # Only restore the session if the force option is true
+      if [ "$force_restore" != "true" ]; then
+        tmux switch-client -Z -t "${restore_session_name}"
+        stop_spinner_with_message "SESSION ALREADY LOADED"
+        return;
+      fi
       # If the session is not the current session
       if [ "$session_name" != "$current_session_name" ]; then
         # Kill the session before restoring
@@ -177,7 +185,7 @@ restore_sessions() {
         pane_command=$(jq -r '.command' <<< "$pane")
 
         # Keep track of the active session/window/panel so we can restore focus at the end
-        if [[ ("$session_active" == "1" || -n "$lazy_restore_chosen_session") && "$window_active" == "1" && "$pane_active" == "1" ]]; then
+        if [[ ("$session_active" == "1" || -n "$restore_session_name") && "$window_active" == "1" && "$pane_active" == "1" ]]; then
           active_session_name=$session_name
           active_session_window_index=$window_index
           active_session_pane_index=$pane_index
@@ -225,7 +233,7 @@ restore_sessions() {
   fi
 
   # Kill the session this command was launched from if restoring all
-  if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ -z "$lazy_restore_chosen_session" ]; then
+  if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ -z "$restore_session_name" ]; then
       tmux kill-session -t $current_session_name
   fi
 
@@ -257,7 +265,7 @@ choose_session() {
     # If the user didn't cancel the chooser
     if [ -n "$lazy_restore_chosen_session" ]; then
       # Restore only that session
-      restore_sessions "$lazy_restore_chosen_session"
+      restore_sessions "$lazy_restore_chosen_session" "false"
     fi
 }
 
@@ -287,6 +295,21 @@ update_session() {
   fi
 
   stop_spinner_with_message "SESSION UPDATED"
+}
+
+# Function: revert_session
+# Description: Revert the current session to its definition in the session file
+# Parameters:
+# Returns:
+revert_session() {
+  # Get the current session name
+  session_name=$(tmux display-message -p '#{session_name}')
+
+  # Get the current session id
+  current_session_id=$(tmux display-message -p '#{session_id}')
+
+  # Restore only that session
+  restore_sessions "$session_name" "true"
 }
 
 # Function: delete_session
@@ -406,6 +429,9 @@ case "$1" in
         ;;
     update)
         update_session
+        ;;
+    revert)
+        revert_session
         ;;
     delete)
         delete_session

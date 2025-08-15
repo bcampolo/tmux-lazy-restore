@@ -2,7 +2,7 @@
 
 ## This had to be a separate script so that it can be launched as a process and killed with its PID
 MESSAGE=$1
-SPINNER='⡀⠄⠂⠁⠈⠐⠠⢀⣀⢄⢂⢁⢈⢐⢠⣠⢤⢢⢡⢨⢰⣰⢴⢲⢱⢸⣸⢼⢺⢹⣹⢽⢻⣻⢿⣿'
+SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 SPINNER_LENGTH=${#SPINNER}
 
 while true; do

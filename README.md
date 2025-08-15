@@ -51,17 +51,19 @@ So here we are: yet another tmux session manager!
 ********************************************************************************
 
 ## Key Bindings ##
-- `prefix + f` - Fuzzy \[F\]ind and restore a single session
-- `prefix + u` - Save/\[U\]pdate the current session only
-- `prefix + X` - Delete/\E[X\]terminate the current session only
-- `prefix + Ctrl-r` - \[R\]estore all sessions (NOTE: Does not impact current sessions that don't exist in the file)
-- `prefix + Ctrl-s` - \[S\]ave all sessions (NOTE: Does not impact session in file that are not currently loaded)
+- `prefix + f` - Fuzzy \[F\]ind a session and if not already loaded, restore the chosen session from the session file
+- `prefix + u` - Save/\[U\]pdate the current session only to the session file
+- `prefix + r` - \[R\]evert the current session to its definition in the session file 
+- `prefix + X` - Delete/\E[X\]terminate the current session and remove it from session file
+- `prefix + Ctrl-r` - \[R\]estore all sessions (NOTE: Does not impact current sessions that don't already exist in the file)
+- `prefix + Ctrl-s` - \[S\]ave all sessions (NOTE: Does not impact sessions in the file that are not currently loaded)
 
 ### Customizing Key Bindings ###
 - Add the following to your ~/.tmux.conf file after the line that adds the plugin
     ```sh
     set -g @tmux-lazy-restore-choose-key 'f'
     set -g @tmux-lazy-restore-update-key 'u'
+    set -g @tmux-lazy-restore-revert-key 'r'
     set -g @tmux-lazy-restore-delete-key 'X'
     set -g @tmux-lazy-restore-restore-all-key 'C-r'
     set -g @tmux-lazy-restore-save-all-key 'C-s'
@@ -81,11 +83,12 @@ Optionally add the following to your ~/.tmux.conf file after the tmux-lazy-resto
 ********************************************************************************
 
 ## TODOs ##
-- [X] Restore Individual Session
+- [X] Fuzzy Find and Restore Individual Session
 - [X] Save/Update Individual Session
 - [X] Restore All Sessions
 - [X] Save All Sessions
 - [X] Delete Individual Session
+- [X] Revert Individual Session
 - [ ] Interoperability with tmux-resurrect
 
 ## Contributing ##
