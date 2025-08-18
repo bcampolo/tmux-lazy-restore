@@ -75,7 +75,11 @@ Optionally add the following to your ~/.tmux.conf file after the tmux-lazy-resto
     ```sh
     set -g @tmux-lazy-restore-session-file '/path/to/file'
     ```
-- After executing `restore all sessions`, kill the tmux session that launched it (defaults to 'off'):
+- After restoring session(s), kill the tmux session that the restore command was launched from, under the following conditions (defaults to 'off'):
+    - The launching session was the only session before restoring
+    - The launching session is empty (1 window, 1 pane)
+    - The launching session name is numeric (usually auto-named by tmux)
+    - The launching session is not the active session being restored
     ```sh
     set -g @tmux-lazy-restore-kill-launch-session 'on'
     ```

@@ -110,6 +110,11 @@ restore_sessions() {
   active_session_window_index=""
   active_session_pane_index=""
 
+  # How many sessions/windows/panes are running
+  initial_session_count=$(tmux list-sessions | wc -l)
+  initial_window_count=$(tmux list-windows | wc -l)
+  initial_pane_count=$(tmux list-panes | wc -l)
+
   # Get the current session name
   current_session_name=$(tmux display-message -p '#{session_name}')
 
@@ -141,7 +146,7 @@ restore_sessions() {
       if [ "$force_restore" != "true" ]; then
         if [ -n "$restore_session_name" ]; then
           tmux switch-client -Z -t "${restore_session_name}"
-          stop_spinner_with_message "SESSION ALREADY LOADED"
+          stop_spinner_with_message "SESSION ALREADY RUNNING"
         fi
         continue
       fi
@@ -234,8 +239,8 @@ restore_sessions() {
     tmux switch-client -Z -t "${active_session_name}:${active_session_window_index}.${active_session_pane_index}"
   fi
 
-  # Kill the session this command was launched from if restoring all
-  if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ -z "$restore_session_name" ]; then
+  # Kill the session this command was launched from if it was the only session and that session was empty
+  if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ "$active_session_name" != "$current_session_name" ] && [ "$initial_session_count" -eq 1 ] && [ "$initial_window_count" -eq 1 ] && [ "$initial_pane_count" -eq 1 ] && [[ "$current_session_name" =~ ^[0-9]+$ ]]; then
       tmux kill-session -t $current_session_name
   fi
 
