@@ -54,7 +54,7 @@ So here we are: yet another tmux session manager!
 - `prefix + f` - Fuzzy \[F\]ind a session and if not already loaded, restore the chosen session from the session file
 - `prefix + u` - Save/\[U\]pdate the current session only to the session file
 - `prefix + r` - \[R\]evert the current session to its definition in the session file 
-- `prefix + X` - Delete/\E[X\]terminate the current session and remove it from session file
+- `prefix + X` - Delete/E\[X\]terminate the current session and remove it from session file
 - `prefix + Ctrl-r` - \[R\]estore all sessions (NOTE: Does not impact current sessions that don't already exist in the file)
 - `prefix + Ctrl-s` - \[S\]ave all sessions (NOTE: Does not impact sessions in the file that are not currently loaded)
 
