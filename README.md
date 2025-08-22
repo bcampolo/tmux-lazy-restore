@@ -8,7 +8,7 @@ A tmux session manager plugin that allows sessions to be lazily restored in orde
 **There are already a bunch of tmux session managers, like tmux-resurrect.  Why did you make another one?**  
 I've used tmux-resurrect for years and it's an awesome plugin, but I kept running into one major issue.  I have a separate tmux session for every project that I work on, which is around 20 different projects.  These project-based tmux sessions usually involve running Neovim, LSPs, and other processes.  This can eat up a lot of resources and usually I'm only working on one or two of those projects in any given day so loading the rest is a waste.  
 
-So I took the next logical step and started working on a PR for tmux-resurrect to add functionality to lazily restore sessions, but then I happened upon these issues on their GitHub page and starting having serious doubts as to whether or not my PR would even be considered:
+So I took the next logical step and started working on a PR for tmux-resurrect to add functionality to lazily restore sessions, but then I happened upon these issues on their GitHub page and started having serious doubts as to whether or not my PR would even be considered:
 - [tmux-resurrect Issue #465 (Closed - Not planned)](https://github.com/tmux-plugins/tmux-resurrect/issues/465)
 - [tmux-resurrect Issue #255 (Closed - User found work-around)](https://github.com/tmux-plugins/tmux-resurrect/issues/255)  
 
