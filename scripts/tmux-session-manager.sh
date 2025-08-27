@@ -141,11 +141,11 @@ restore_sessions() {
     active_window_index=""
 
     # If the session already exists
-    if tmux has-session -t "$session_name" 2>/dev/null; then
+    if tmux has-session -t="$session_name" 2>/dev/null; then
       # Only restore the session if the force option is true
       if [ "$force_restore" != "true" ]; then
         if [ -n "$restore_session_name" ]; then
-          tmux switch-client -Z -t "${restore_session_name}"
+          tmux switch-client -Z -t="${restore_session_name}"
           stop_spinner_with_message "SESSION ALREADY RUNNING"
         fi
         continue
@@ -153,7 +153,7 @@ restore_sessions() {
       # If the session is not the current session
       if [ "$session_name" != "$current_session_name" ]; then
         # Kill the session before restoring
-        tmux kill-session -t "$session_name"
+        tmux kill-session -t="$session_name"
         # Start a new session with the specified name
         tmux new-session -d -s "$session_name"
       else
@@ -177,11 +177,11 @@ restore_sessions() {
 
       # Do not create a new window if this is the fist window because tmux creates a starting window with each session
       if [ "$window_index" -gt 0 ]; then
-        tmux new-window -d -t "$session_name" -n "$window_name"
+        tmux new-window -d -t="$session_name" -n "$window_name"
       fi
 
       # Select the newly created window
-      tmux select-window -t "$session_name:$window_index"
+      tmux select-window -t="$session_name:$window_index"
 
       # For each pane
       panes=$(jq -c '.panes[]' <<< "$window")
@@ -192,7 +192,7 @@ restore_sessions() {
         pane_command=$(jq -r '.command' <<< "$pane")
 
         # Keep track of the active session/window/panel so we can restore focus at the end
-        if [[ ("$session_active" == "1" || -n "$restore_session_name") && "$window_active" == "1" && "$pane_active" == "1" ]]; then
+        if [[ ("$session_active" == "1" || -n "$restore_session_name" || "$active_session_name" == "") && "$window_active" == "1" && "$pane_active" == "1" ]]; then
           active_session_name=$session_name
           active_session_window_index=$window_index
           active_session_pane_index=$pane_index
@@ -207,41 +207,41 @@ restore_sessions() {
 
         # Do not create a new pane if this is the fist pane because tmux creates a starting pane with each window
         if [ "$pane_index" -gt 0 ]; then
-          tmux split-window -t "${session_name}:${window_index}" -c "$pane_path"
+          tmux split-window -t="${session_name}:${window_index}" -c "$pane_path"
         fi                
 
         # Restore the original process in its pane
         if [ -n "$pane_command" ]; then
-          tmux send-keys -t "$session_name:$window_index.$pane_index" "$pane_command" C-m
+          tmux send-keys -t="$session_name:$window_index.$pane_index" "$pane_command" C-m
         elif [ -n "$pane_path" ]; then
           # If there was no process, at least set the path
-          tmux send-keys -t "$session_name:$window_index.$pane_index" "cd \"$pane_path\"" C-m "clear" C-m
+          tmux send-keys -t="$session_name:$window_index.$pane_index" "cd \"$pane_path\"" C-m "clear" C-m
         fi
       done <<< "$panes"
 
       # Restore this window's panel layout
-      tmux select-layout -t "$session_name:$window_index" "$window_layout"
+      tmux select-layout -t="$session_name:$window_index" "$window_layout"
       # Restore selection of the active pane
-      tmux select-pane -t "$session_name:$window_index.$active_pane_index"
+      tmux select-pane -t="$session_name:$window_index.$active_pane_index"
       # Restore which panel was zoomed in this window
       if [[ "$window_zoomed_flag" == "1" && -n "$active_pane_index" ]]; then
-        tmux resize-pane -t "$session_name:$window_index.$active_pane_index" -Z
+        tmux resize-pane -t="$session_name:$window_index.$active_pane_index" -Z
       fi
     done <<< "$windows"
 
     # Restore selection of the active window
-    tmux select-window -t "$session_name:$active_window_index.$active_window_pane_index"
+    tmux select-window -t="$session_name:$active_window_index.$active_window_pane_index"
 
   done <<< "$sessions"
 
   # Restore focus on the active session/window/panel
   if [ -n "$active_session_name" ]; then
-    tmux switch-client -Z -t "${active_session_name}:${active_session_window_index}.${active_session_pane_index}"
-  fi
+    tmux switch-client -Z -t="${active_session_name}:${active_session_window_index}.${active_session_pane_index}"
 
-  # Kill the session this command was launched from if it was the only session and that session was empty
-  if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ "$active_session_name" != "$current_session_name" ] && [ "$initial_session_count" -eq 1 ] && [ "$initial_window_count" -eq 1 ] && [ "$initial_pane_count" -eq 1 ] && [[ "$current_session_name" =~ ^[0-9]+$ ]]; then
+    # Kill the session this command was launched from if it was the only session and that session was empty
+    if [ "$KILL_LAUNCH_SESSION" == "on" ] && [ "$active_session_name" != "$current_session_name" ] && [ "$initial_session_count" -eq 1 ] && [ "$initial_window_count" -eq 1 ] && [ "$initial_pane_count" -eq 1 ] && [[ "$current_session_name" =~ ^[0-9]+$ ]]; then
       tmux kill-session -t $current_session_name
+    fi
   fi
 
   # All done restoring
@@ -337,7 +337,7 @@ delete_session() {
   fi
 
   # Kill the current session
-  tmux kill-session -t "$session_name" 2>/dev/null
+  tmux kill-session -t="$session_name" 2>/dev/null
 
   stop_spinner_with_message "SESSION DELETED"
 }
@@ -372,14 +372,14 @@ clear_session_contents() {
   current_pane_id=$3
 
   # Loop through all windows in the current session
-  tmux list-windows -t "$current_session_name" -F "#{window_name}:#{window_id}" | while IFS=: read -r window_name window_id; do
+  tmux list-windows -t="$current_session_name" -F "#{window_name}:#{window_id}" | while IFS=: read -r window_name window_id; do
     if [ "$window_id" != "$current_window_id" ]; then
-      tmux kill-window -t "$current_session_name:$window_id"
+      tmux kill-window -t="$current_session_name:$window_id"
     fi
   done
 
   # Loop through all panes in the current window
-  tmux list-panes -t "$current_session_name:$current_window_id" -F "#{pane_id}" | while IFS= read -r pane_id; do
+  tmux list-panes -t="$current_session_name:$current_window_id" -F "#{pane_id}" | while IFS= read -r pane_id; do
     # If this pane is not the current pane
     if [ "$pane_id" != "$current_pane_id" ]; then
       # Kill this pane
