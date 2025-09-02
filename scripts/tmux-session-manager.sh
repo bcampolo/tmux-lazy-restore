@@ -124,14 +124,20 @@ restore_sessions() {
   # Get the current window id
   current_pane_id=$(tmux display-message -p '#{pane_id}')
 
-  # If session is passed filter the session file to only the specified session (faster)
+  # If a single session is passed, filter the session file to only the specified session (faster)
   if [ -n "$restore_session_name" ]; then
-    sessions=$(jq -c --arg restore_session_name "$restore_session_name" '.sessions[] | select(.name == $restore_session_name)' "$SESSION_FILE")
     start_spinner_with_message "RESTORING: $restore_session_name"
+    # If the specified session is already running and the force option is false, just switch to the session and return
+    if tmux has-session -t="$restore_session_name" 2>/dev/null && [ "$force_restore" != "true" ]; then
+      tmux switch-client -Z -t="${restore_session_name}"
+      stop_spinner_with_message "SESSION ALREADY RUNNING"
+      return
+    fi
+    sessions=$(jq -c --arg restore_session_name "$restore_session_name" '.sessions[] | select(.name == $restore_session_name)' "$SESSION_FILE")
   else
     # Otherwise, load all sessions
-    sessions=$(jq -c '.sessions[]' "$SESSION_FILE")
     start_spinner_with_message "RESTORING ALL SESSIONS"
+    sessions=$(jq -c '.sessions[]' "$SESSION_FILE")
   fi
 
   # For each session
@@ -142,12 +148,8 @@ restore_sessions() {
 
     # If the session already exists
     if tmux has-session -t="$session_name" 2>/dev/null; then
-      # Only restore the session if the force option is true
+      # This session already exists, so unless the force option is true, skip it
       if [ "$force_restore" != "true" ]; then
-        if [ -n "$restore_session_name" ]; then
-          tmux switch-client -Z -t="${restore_session_name}"
-          stop_spinner_with_message "SESSION ALREADY RUNNING"
-        fi
         continue
       fi
       # If the session is not the current session
@@ -249,25 +251,54 @@ restore_sessions() {
 }
 
 # Function: choose_session
-# Description: Display a tmux popup that allows choice of tmux sessions from the session file (instead of live sessions)
+# Description: Display a tmux popup that allows choice of tmux sessions from the session file and live sessions
 # Parameters:
 # Returns:
 choose_session() {
-    # Get the list of Session names only
-    sessions=$(jq -r '.sessions | .[].name' "$SESSION_FILE")
-    session_list=""
-    for session in "${sessions[@]}"; do
-      session_list+="$session"
+    # Get the list of session names from the sessions file
+    file_sessions_string=$(jq -r '.sessions | .[].name' "$SESSION_FILE")
+    declare -A file_sessions
+    while IFS= read -r session_name; do
+      file_sessions[$session_name]=1
+    done <<< "$file_sessions_string"
+
+    # Get the list of session names from the active tmux sessions
+    declare -A active_sessions
+    while IFS= read -r session_name; do
+      active_sessions[$session_name]=1
+    done <<< $(tmux list-sessions -F "#{session_name}")
+
+    # Create a list of sessions to display in the chooser 
+    chooser_sessions=""
+    for session_name in "${!file_sessions[@]}"; do
+      # In the file and in the active list, mark with ~
+      if [[ -v active_sessions[$session_name] ]]; then
+        chooser_sessions+="$session_name\033[1;34m [~]\033[0m\n"
+      else
+        chooser_sessions+="$session_name\n"
+      fi
     done
-    
-    # Reset the chosen session
+    for session_name in "${!active_sessions[@]}"; do
+      # Not in the file but in the active list, mark with *
+      if [[ ! -v file_sessions[$session_name] ]]; then
+        chooser_sessions+="$session_name\033[1;34m [*]\033[0m\n"
+      fi
+    done
+
+    # Remove trailing newline which would cause an empty fzf entry
+    chooser_sessions=${chooser_sessions%\\n}
+
+    # Sort entries alphabetically
+    chooser_sessions=$(echo -e "$chooser_sessions" | sort)
+
+    # Reset the chosen session option
     tmux set-option -gu @lazy_restore_chosen_session
 
     # Display choice of session to user and then store that choice in a tmux option
-    tmux display-popup -E "echo \"${session_list}\" | fzf | tr -d '\n' | xargs -0 -I {} tmux set-option -g @lazy_restore_chosen_session {}"
+    tmux display-popup -E "echo \"${chooser_sessions}\" | fzf --ansi --header="[*]\\\ =\\\ not\\\ in\\\ session\\\ file,\\\ [~]\\\ =\\\ already\\\ loaded\\\ from\\\ session\\\ file" --header-first | tr -d '\n' | xargs -0 -I {} tmux set-option -g @lazy_restore_chosen_session {}"
 
     # Convert the tmux option to a shell variable
-    lazy_restore_chosen_session=$(tmux show-options -gv @lazy_restore_chosen_session)
+    lazy_restore_chosen_session=$(tmux show-options -gv @lazy_restore_chosen_session | sed 's/ \[\*]\| \[~]$//')
 
     # If the user didn't cancel the chooser
     if [ -n "$lazy_restore_chosen_session" ]; then

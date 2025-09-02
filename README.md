@@ -93,6 +93,7 @@ Optionally add the following to your ~/.tmux.conf file after the tmux-lazy-resto
 - [X] Save All Sessions
 - [X] Delete Individual Session
 - [X] Revert Individual Session
+- [X] Indicate which sessions are new and which are already loaded
 - [ ] Interoperability with tmux-resurrect
 
 ## Contributing ##
