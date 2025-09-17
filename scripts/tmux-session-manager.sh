@@ -59,9 +59,11 @@ get_session_data() {
   echo "\"active\":\"$session_active\","
   echo "\"windows\": ["
   # For each window
+  first_window=true
   tmux list-windows -t "$session_id" -F "#{window_index}:#{window_name}:#{window_id}:#{window_active}:#{window_zoomed_flag}:#{window_layout}" | while IFS=: read -r window_index window_name window_id window_active window_zoomed_flag window_layout; do
     # If this is not the first window add a comma after the previous item
-    if [ "$window_index" != "0" ]; then echo ","; fi
+    if [ "$first_window" != "true" ]; then echo ","; fi
+    first_window=false
     # Write out this window
     echo "{"
     echo "\"index\":$window_index,"
@@ -70,9 +72,11 @@ get_session_data() {
     echo "\"zoomed\":\"$window_zoomed_flag\","
     echo "\"layout\":\"$window_layout\","
     echo "\"panes\": ["
+    first_pane=true
     tmux list-panes -t "$window_id" -F "#{pane_index}:#{pane_id}:#{pane_active}:#{pane_current_path}:#{pane_pid}" | while IFS=: read -r pane_index pane_id pane_active pane_current_path pane_pid; do
       # If this is not the first pane add a comma after the previous item
-      if [ "$pane_index" != "0" ]; then echo ","; fi
+      if [ "$first_pane" != "true" ]; then echo ","; fi
+      first_pane=false
       # Get the command line arguments for the process running this pane
       pane_command=$(ps --ppid "$pane_pid" -o args= 2>/dev/null | sed 's/"/\\"/g' | sed 's/\n//') # Escape quotes for JSON
       # Don't include this plugin's command in the saved session
@@ -485,4 +489,3 @@ case "$1" in
         exit 1
         ;;
 esac
-
