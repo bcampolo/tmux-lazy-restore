@@ -262,9 +262,11 @@ choose_session() {
     # Get the list of session names from the sessions file
     file_sessions_string=$(jq -r '.sessions | .[].name' "$SESSION_FILE")
     declare -A file_sessions
-    while IFS= read -r session_name; do
-      file_sessions[$session_name]=1
-    done <<< "$file_sessions_string"
+    if [ -n "$file_sessions_string" ]; then
+      while IFS= read -r session_name; do
+        file_sessions[$session_name]=1
+      done <<< "$file_sessions_string"
+    fi
 
     # Get the list of session names from the active tmux sessions
     declare -A active_sessions
