@@ -301,7 +301,8 @@ choose_session() {
     tmux set-option -gu @lazy_restore_chosen_session
 
     # Display choice of session to user and then store that choice in a tmux option
-    tmux display-popup -E "echo \"${chooser_sessions}\" | fzf --ansi --header="[*]\\\ =\\\ not\\\ in\\\ session\\\ file,\\\ [~]\\\ =\\\ already\\\ loaded\\\ from\\\ session\\\ file" --header-first | tr -d '\n' | xargs -0 -I {} tmux set-option -g @lazy_restore_chosen_session {}"
+	tmux display-popup -E "echo \"${chooser_sessions}\" | fzf --ansi --header='[*] = not in session file, [~] = already loaded from session file' --header-first | tr -d '\n' | xargs -0 -I {} tmux set-option -g @lazy_restore_chosen_session {}"
+
 
     # Convert the tmux option to a shell variable
     lazy_restore_chosen_session=$(tmux show-options -gv @lazy_restore_chosen_session | sed 's/ \[\*]\| \[~]$//')
