@@ -125,7 +125,7 @@ restore_sessions() {
   # Get the current window id
   current_window_id=$(tmux display-message -p '#{window_id}')
 
-  # Get the current window id
+  # Get the current pane id
   current_pane_id=$(tmux display-message -p '#{pane_id}')
 
   # If a single session is passed, filter the session file to only the specified session (faster)
@@ -216,11 +216,14 @@ restore_sessions() {
           tmux split-window -t="${session_name}:${window_index}" -c "$pane_path"
         fi                
 
-        # Restore the original process in its pane
-        if [ -n "$pane_command" ]; then
+        # Restore the original path and process in its pane
+        if [ -n "$pane_path" ] && [ -n "$pane_command" ]; then
+          tmux send-keys -t="$session_name:$window_index.$pane_index" "cd \"$pane_path\"" C-m "$pane_command" C-m
+        elif [ -n "$pane_command" ]; then
+          # If there was no path, start the process
           tmux send-keys -t="$session_name:$window_index.$pane_index" "$pane_command" C-m
         elif [ -n "$pane_path" ]; then
-          # If there was no process, at least set the path
+          # If there was no process, set the path
           tmux send-keys -t="$session_name:$window_index.$pane_index" "cd \"$pane_path\"" C-m "clear" C-m
         fi
       done <<< "$panes"
@@ -424,10 +427,26 @@ clear_session_contents() {
       tmux kill-pane -t "$pane_id"
     else
       # This is the last pane, so just kill the running process of the current pane
-      pid=$(tmux display-message -p -t "$current_pane_id" "#{pane_pid}")
-      kill "$pid" 2>/dev/null
+      kill -KILL "$(get_pane_pid $current_pane_id)" 2>/dev/null
     fi
   done
+}
+
+# Function: get_pane_pid
+# Description: Helper function to get the pid for the specified pane
+# Parameters:
+#   $1 - The pane ID to get the PID for
+# Returns:
+#   The PID of the process running in the specified tmux pane
+get_pane_pid() {
+  pane_id=$1
+  local pane_pid=$(tmux display-message -p -t "$pane_id" "#{pane_pid}")
+
+  ps -ao "ppid pid" |
+    sed "s/^ *//" |
+    grep "^${pane_pid}" |
+    cut -d' ' -f2- |
+    head -n 1
 }
 
 # Function: start_spinner_with_message
