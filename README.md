@@ -106,6 +106,7 @@ If you run into any issues or have any suggestions, open a Pull Request that inc
 I would like to thank the following plugins for inspiration and as a reference during development:
 - [tmux resurrect](https://github.com/tmux-plugins/tmux-resurrect)
 - [tpm](https://github.com/tmux-plugins/tpm)
+- [tmux cowboy](https://github.com/tmux-plugins/tmux-cowboy)
 
 ********************************************************************************
 
