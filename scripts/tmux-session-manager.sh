@@ -184,6 +184,8 @@ restore_sessions() {
       # Do not create a new window if this is the fist window because tmux creates a starting window with each session
       if [ "$window_index" -gt 0 ]; then
         tmux new-window -d -t="$session_name" -n "$window_name"
+      else
+        tmux rename-window -t="$session_name:$window_index" "$window_name"
       fi
 
       # Select the newly created window
